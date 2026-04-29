@@ -85,7 +85,6 @@
             box-shadow: 0px 0px 0px #000000;
         }
 
-        /* PS2-style scanlines */
         body::before {
             content: "";
             position: fixed;
@@ -102,7 +101,6 @@
             z-index: 15;
         }
 
-        /* CRT effect */
         body::after {
             content: "";
             position: fixed;
@@ -121,6 +119,8 @@
     </style>
 </head>
 <body>
+    <audio id="bgm" src="music.mp3" loop preload="auto" autoplay muted playsinline></audio>
+
     <div id="three-container"></div>
 
     <div class="message-container">
@@ -129,16 +129,85 @@
             сайт возвращается на старую ссылку:<br>
             exor4ik.github.io/website
         </div>
-        <div class="ps2-logo">
-        </div>
+        <div class="ps2-logo"></div>
         <a href="https://exor4ik.github.io/website" class="button-3d" id="redirect-button">
             ПЕРЕЙТИ
         </a>
     </div>
 
     <script src="three.min.js"></script>
+
     <script>
-        // Three.js setup
+        document.addEventListener('DOMContentLoaded', () => {
+            const audio = document.getElementById('bgm');
+            audio.volume = 0.5;
+
+            const tryPlay = () => {
+                audio.play().then(() => {
+                    setTimeout(() => {
+                        audio.muted = false;
+                    }, 100);
+                }).catch(() => {
+                    const startOnGesture = () => {
+                        audio.play().then(() => {
+                            audio.muted = false;
+                        }).catch(err => console.log('Playback failed:', err));
+
+                        window.removeEventListener('click', startOnGesture);
+                        window.removeEventListener('mousemove', startOnGesture);
+                        window.removeEventListener('touchstart', startOnGesture);
+                        window.removeEventListener('keydown', startOnGesture);
+                        window.removeEventListener('scroll', startOnGesture);
+                    };
+
+                    window.addEventListener('click', startOnGesture, { once: true });
+                    window.addEventListener('mousemove', startOnGesture, { once: true });
+                    window.addEventListener('touchstart', startOnGesture, { once: true });
+                    window.addEventListener('keydown', startOnGesture, { once: true });
+                    window.addEventListener('scroll', startOnGesture, { once: true });
+                });
+            };
+
+            tryPlay();
+
+            const audioControl = document.createElement('div');
+            audioControl.style.position = 'fixed';
+            audioControl.style.bottom = '20px';
+            audioControl.style.right = '20px';
+            audioControl.style.zIndex = '100';
+            audioControl.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            audioControl.style.padding = '10px';
+            audioControl.style.borderRadius = '5px';
+            audioControl.style.border = '2px solid #ff0000';
+            audioControl.style.color = 'white';
+            audioControl.style.fontFamily = 'Courier New, monospace';
+            audioControl.style.cursor = 'pointer';
+
+            audioControl.innerHTML = `
+                <span id="audio-status">🎵 Music: ON</span>
+                <button id="toggle-music" style="margin-left: 10px; background: none; border: none; color: white; cursor: pointer; font-size: 16px;">⏸️</button>
+            `;
+
+            document.body.appendChild(audioControl);
+
+            const toggleButton = document.getElementById('toggle-music');
+            const statusText = document.getElementById('audio-status');
+
+            toggleButton.addEventListener('click', function() {
+                if (audio.paused) {
+                    audio.play().catch(e => console.log('Playback failed:', e));
+                    statusText.textContent = '🎵 Music: ON';
+                    toggleButton.textContent = '⏸️';
+                } else {
+                    audio.pause();
+                    statusText.textContent = '🎵 Music: OFF';
+                    toggleButton.textContent = '▶️';
+                }
+            });
+        });
+    </script>
+
+    <script>
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -146,21 +215,17 @@
         renderer.setClearColor(0x000000, 0);
         document.getElementById('three-container').appendChild(renderer.domElement);
 
-        // Add ambient light
         const ambientLight = new THREE.AmbientLight(0xff0000, 0.5);
         scene.add(ambientLight);
 
-        // Add directional light
         const directionalLight = new THREE.DirectionalLight(0xff0000, 1);
         directionalLight.position.set(1, 1, 1);
         scene.add(directionalLight);
 
-        // Create rotating cube group
         const rotatingCubes = [];
         const rotatingCubeGroup = new THREE.Group();
         scene.add(rotatingCubeGroup);
 
-        // Create glass-like red cubes that rotate
         for (let i = 0; i < 8; i++) {
             const geometry = new THREE.BoxGeometry(1, 1, 1);
             const material = new THREE.MeshPhongMaterial({
@@ -177,7 +242,6 @@
             cube.position.y = (Math.random() - 0.5) * 15;
             cube.position.z = (Math.random() - 0.5) * 15;
 
-            // Add wireframe edges
             const edges = new THREE.EdgesGeometry(geometry);
             const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({
                 color: 0xff0000,
@@ -191,53 +255,40 @@
             rotatingCubes.push(cube);
         }
 
-        // Flying cubes that spawn outside screen
         const flyingCubes = [];
         let lastSpawnTime = 0;
-        const spawnInterval = 1000; // 1 second
+        const spawnInterval = 1000;
 
         function createFlyingCube() {
             const geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
             const material = new THREE.MeshPhongMaterial({
                 color: 0xff0000,
                 transparent: true,
-                opacity: 0.0, // Start invisible
+                opacity: 0.0,
                 specular: 0xffffff,
                 shininess: 30
             });
 
             const cube = new THREE.Mesh(geometry, material);
 
-            // Spawn outside screen (random side)
             const side = Math.floor(Math.random() * 4);
             const distance = 20 + Math.random() * 10;
 
             switch(side) {
-                case 0: // top
-                    cube.position.set((Math.random() - 0.5) * 30, distance, (Math.random() - 0.5) * 30);
-                    break;
-                case 1: // right
-                    cube.position.set(distance, (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30);
-                    break;
-                case 2: // bottom
-                    cube.position.set((Math.random() - 0.5) * 30, -distance, (Math.random() - 0.5) * 30);
-                    break;
-                case 3: // left
-                    cube.position.set(-distance, (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30);
-                    break;
+                case 0: cube.position.set((Math.random() - 0.5) * 30, distance, (Math.random() - 0.5) * 30); break;
+                case 1: cube.position.set(distance, (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30); break;
+                case 2: cube.position.set((Math.random() - 0.5) * 30, -distance, (Math.random() - 0.5) * 30); break;
+                case 3: cube.position.set(-distance, (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30); break;
             }
 
-            // Add wireframe
             const edges = new THREE.EdgesGeometry(geometry);
             const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({
                 color: 0xff0000,
-                linewidth: 1,
                 transparent: true,
-                opacity: 0.0 // Start invisible
+                opacity: 0.0
             }));
             cube.add(line);
 
-            // Set random direction away from center
             cube.userData = {
                 direction: new THREE.Vector3(
                     (Math.random() - 0.5) * 0.1,
@@ -249,10 +300,10 @@
                     (Math.random() - 0.5) * 0.02,
                     (Math.random() - 0.5) * 0.02
                 ),
-                lifetime: 10000 + Math.random() * 5000, // 10-15 seconds
-                fadeInDuration: 1000, // 1 second fade-in
+                lifetime: 10000 + Math.random() * 5000,
+                fadeInDuration: 1000,
                 fadeInProgress: 0,
-                fadeOutDuration: 2000, // 2 second fade-out
+                fadeOutDuration: 2000,
                 fadeOutStarted: false
             };
 
@@ -262,28 +313,23 @@
 
         camera.position.z = 15;
 
-        // Animation loop
         function animate(currentTime) {
             requestAnimationFrame(animate);
 
-            // Spawn new flying cubes periodically
             if (currentTime - lastSpawnTime > spawnInterval) {
                 createFlyingCube();
                 lastSpawnTime = currentTime;
 
-                // Remove old cubes
                 if (flyingCubes.length > 20) {
                     const oldCube = flyingCubes.shift();
                     scene.remove(oldCube);
                 }
             }
 
-            // Update flying cubes
-            const deltaTime = 16; // Assume ~60fps
+            const deltaTime = 16;
             flyingCubes.forEach((cube, index) => {
                 const data = cube.userData;
 
-                // Handle fade-in
                 if (data.fadeInProgress < data.fadeInDuration) {
                     data.fadeInProgress += deltaTime;
                     const fadeInRatio = Math.min(1, data.fadeInProgress / data.fadeInDuration);
@@ -293,36 +339,28 @@
                     data.fadeOutStarted = true;
                 }
 
-                // Handle fade-out
                 if (data.fadeOutStarted) {
                     const fadeOutRatio = 1 - (data.fadeOutDuration - data.lifetime) / data.fadeOutDuration;
                     cube.material.opacity = 0.7 * (1 - fadeOutRatio);
                     cube.children[0].material.opacity = 0.6 * (1 - fadeOutRatio);
                 }
 
-                // Move cube
                 cube.position.add(data.direction);
-
-                // Rotate cube
                 cube.rotation.x += data.rotationSpeed.x;
                 cube.rotation.y += data.rotationSpeed.y;
                 cube.rotation.z += data.rotationSpeed.z;
 
-                // Update lifetime
                 data.lifetime -= deltaTime;
 
-                // Remove if lifetime expired
                 if (data.lifetime <= 0) {
                     scene.remove(cube);
                     flyingCubes.splice(index, 1);
                 }
             });
 
-            // Rotate the main cube group
             rotatingCubeGroup.rotation.x += 0.005;
             rotatingCubeGroup.rotation.y += 0.005;
 
-            // Individual rotations for main cubes
             rotatingCubes.forEach((cube, index) => {
                 cube.rotation.x += 0.01 * (index % 2 === 0 ? 1 : -1);
                 cube.rotation.y += 0.01 * (index % 3 === 0 ? 1 : -1);
@@ -331,14 +369,12 @@
             renderer.render(scene, camera);
         }
 
-        // Handle window resize
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // Add mouse interaction for camera
         let mouseX = 0;
         let mouseY = 0;
 
@@ -346,13 +382,11 @@
             mouseX = (event.clientX / window.innerWidth) * 2 - 1;
             mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
 
-            // Subtle camera movement
             camera.position.x = mouseX * 2;
             camera.position.y = mouseY * 2;
             camera.lookAt(scene.position);
         });
 
-        // Reset camera on mouse leave
         document.addEventListener('mouseleave', () => {
             camera.position.x = 0;
             camera.position.y = 0;
@@ -360,7 +394,6 @@
             camera.lookAt(scene.position);
         });
 
-        // Start animation
         animate(0);
     </script>
 </body>

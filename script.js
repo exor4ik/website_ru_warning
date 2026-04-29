@@ -1,12 +1,42 @@
-// Three.js 3D Scene Setup
+// Three.js 3D Scene Setup with error handling and retry logic
 let scene, camera, renderer;
 let geometries = [];
 let particles = [];
+let animationFrameId;
+let threeInitialized = false;
+
+function checkThreeJS() {
+    if (typeof THREE === 'undefined') {
+        console.warn('Three.js not loaded yet');
+        return false;
+    }
+    return true;
+}
+
+function setupFallback() {
+    const container = document.getElementById('canvas-container');
+    if (container) {
+        container.style.background = `
+            radial-gradient(ellipse at 50% 30%, 
+                rgba(255, 100, 100, 0.6) 0%,
+                rgba(255, 50, 50, 0.3) 30%,
+                rgba(100, 0, 0, 0.2) 60%,
+                #000 100%)
+        `;
+        container.style.backgroundAttachment = 'fixed';
+    }
+}
 
 function initThreeJS() {
-    // Scene
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
+    try {
+        if (!checkThreeJS()) {
+            setupFallback();
+            return;
+        }
+        
+        // Scene
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
     
     // Camera
     camera = new THREE.PerspectiveCamera(
@@ -46,6 +76,10 @@ function initThreeJS() {
     
     // Start animation
     animate();
+    } catch (error) {
+        console.error('Three.js initialization error:', error);
+        setupFallback();
+    }
 }
 
 function createGeometries() {
@@ -203,7 +237,7 @@ function createParticles() {
 }
 
 function animate() {
-    requestAnimationFrame(animate);
+    animationFrameId = requestAnimationFrame(animate);
     
     // Animate geometries
     geometries.forEach((mesh, index) => {
@@ -255,8 +289,52 @@ function redirectToLink() {
 }
 
 // Initialize when document is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initThreeJS);
-} else {
-    initThreeJS();
+function initializeApp() {
+    if (threeInitialized) return;
+    
+    if (checkThreeJS()) {
+        initThreeJS();
+        threeInitialized = true;
+    } else {
+        setupFallback();
+        console.warn('Falling back to CSS gradients - Three.js not available');
+    }
 }
+
+// Try to initialize with retry logic
+document.addEventListener('DOMContentLoaded', () => {
+    // Try immediately
+    initializeApp();
+    
+    // Retry after short delay in case Three.js is still loading
+    setTimeout(() => {
+        if (!threeInitialized && checkThreeJS()) {
+            initializeApp();
+        }
+    }, 500);
+    
+    // Final retry after longer delay
+    setTimeout(() => {
+        if (!threeInitialized) {
+            setupFallback();
+            console.warn('Three.js failed to load, using fallback');
+        }
+    }, 2000);
+});
+
+// Fallback if DOM is already ready
+if (document.readyState !== 'loading') {
+    setTimeout(() => {
+        initializeApp();
+    }, 100);
+}
+
+// Handle cleanup
+window.addEventListener('beforeunload', () => {
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+    }
+    if (renderer) {
+        renderer.dispose();
+    }
+});

@@ -3,8 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>PS2 RSOD Warning</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Explicit base URL for GitHub Pages -->
+    <script>
+        // Detect if running on GitHub Pages and set base URL accordingly
+        if (window.location.hostname.includes('github.io')) {
+            const base = document.createElement('base');
+            base.href = '/website_ru_warning/';
+            document.head.appendChild(base);
+        }
+    </script>
 </head>
 <body>
     <div id="canvas-container"></div>
@@ -27,7 +37,17 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Three.js from jsDelivr CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/three@r128/build/three.min.js"></script>
+    <!-- Fallback Three.js from unpkg -->
+    <script>
+        if (!window.THREE) {
+            var script = document.createElement('script');
+            script.src = 'https://unpkg.com/three@r128/build/three.min.js';
+            document.head.appendChild(script);
+        }
+    </script>
+    <!-- Main script -->
     <script src="script.js"></script>
 </body>
 </html>

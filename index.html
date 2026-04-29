@@ -130,7 +130,6 @@
             exor4ik.github.io/website
         </div>
         <div class="ps2-logo">
-            PLAYSTATION 2 STYLE ERROR
         </div>
         <a href="https://exor4ik.github.io/website" class="button-3d" id="redirect-button">
             ПЕРЕЙТИ
@@ -202,7 +201,7 @@
             const material = new THREE.MeshPhongMaterial({
                 color: 0xff0000,
                 transparent: true,
-                opacity: 0.7,
+                opacity: 0.0, // Start invisible
                 specular: 0xffffff,
                 shininess: 30
             });
@@ -234,7 +233,7 @@
                 color: 0xff0000,
                 linewidth: 1,
                 transparent: true,
-                opacity: 0.6
+                opacity: 0.0 // Start invisible
             }));
             cube.add(line);
 
@@ -250,7 +249,11 @@
                     (Math.random() - 0.5) * 0.02,
                     (Math.random() - 0.5) * 0.02
                 ),
-                lifetime: 10000 + Math.random() * 5000 // 10-15 seconds
+                lifetime: 10000 + Math.random() * 5000, // 10-15 seconds
+                fadeInDuration: 1000, // 1 second fade-in
+                fadeInProgress: 0,
+                fadeOutDuration: 2000, // 2 second fade-out
+                fadeOutStarted: false
             };
 
             scene.add(cube);
@@ -276,8 +279,26 @@
             }
 
             // Update flying cubes
+            const deltaTime = 16; // Assume ~60fps
             flyingCubes.forEach((cube, index) => {
                 const data = cube.userData;
+
+                // Handle fade-in
+                if (data.fadeInProgress < data.fadeInDuration) {
+                    data.fadeInProgress += deltaTime;
+                    const fadeInRatio = Math.min(1, data.fadeInProgress / data.fadeInDuration);
+                    cube.material.opacity = 0.7 * fadeInRatio;
+                    cube.children[0].material.opacity = 0.6 * fadeInRatio;
+                } else if (!data.fadeOutStarted && data.lifetime < data.fadeOutDuration) {
+                    data.fadeOutStarted = true;
+                }
+
+                // Handle fade-out
+                if (data.fadeOutStarted) {
+                    const fadeOutRatio = 1 - (data.fadeOutDuration - data.lifetime) / data.fadeOutDuration;
+                    cube.material.opacity = 0.7 * (1 - fadeOutRatio);
+                    cube.children[0].material.opacity = 0.6 * (1 - fadeOutRatio);
+                }
 
                 // Move cube
                 cube.position.add(data.direction);
@@ -287,12 +308,11 @@
                 cube.rotation.y += data.rotationSpeed.y;
                 cube.rotation.z += data.rotationSpeed.z;
 
-                // Fade out over time
-                cube.material.opacity = Math.max(0.1, cube.userData.lifetime / 15000);
-                cube.userData.lifetime -= 30;
+                // Update lifetime
+                data.lifetime -= deltaTime;
 
                 // Remove if lifetime expired
-                if (cube.userData.lifetime <= 0) {
+                if (data.lifetime <= 0) {
                     scene.remove(cube);
                     flyingCubes.splice(index, 1);
                 }
